@@ -1,0 +1,67 @@
+{
+  "name": "countrylookupturbo",
+  "version": "1.0.0",
+  "description": "A boosted, lightweight, whole-globe, 10 meter precision, spatial lookup for countries – Browser and Node",
+  "repository": "jonathanlurie/countrylookupturbo",
+  "main": "dist/countrylookupturbo.cjs.js",
+  "module": "dist/countrylookupturbo.es.js",
+  "browser": "dist/countrylookupturbo.umd.js",
+  "entry": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "NODE_ENV=production rollup -c",
+    "dev": "serve . & NODE_ENV=development rollup -w -c",
+    "doc": "documentation build src/index.js -o ./doc/ --sort-order alpha --theme doc_theme -f html",
+    "lint": "eslint src"
+  },
+  "author": "Jonathan Lurie",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^11.1.0",
+    "@rollup/plugin-node-resolve": "^7.1.3",
+    "documentation": "^12.3.0",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.1.0",
+    "eslint-plugin-import": "^2.20.2",
+    "rollup": "^2.6.1",
+    "rollup-plugin-commonjs": "^9.1.6",
+    "rollup-plugin-node-builtins": "^2.1.2",
+    "rollup-plugin-node-globals": "^1.4.0",
+    "rollup-plugin-node-resolve": "^3.4.0",
+    "rollup-plugin-terser": "^5.3.0",
+    "serve": "^11.3.0",
+    "@rollup/plugin-json": "^4.1.0"
+  },
+  "eslintConfig": {
+    "extends": "eslint-config-airbnb-base",
+    "rules": {
+      "semi": [
+        "error",
+        "never"
+      ],
+      "no-underscore-dangle": [
+        "off",
+        {
+          "allowAfterThis": true
+        }
+      ],
+      "max-len": [
+        "warn",
+        {
+          "code": 150
+        }
+      ],
+      "prefer-destructuring": [
+        "off"
+      ],
+      "no-param-reassign": [
+        "warn"
+      ]
+    }
+  },
+  "dependencies": {
+    "robust-point-in-polygon": "^1.0.3",
+    "suncalc": "^1.8.0",
+    "topojson-client": "^3.1.0"
+  }
+}

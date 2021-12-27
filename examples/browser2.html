@@ -1,0 +1,335 @@
+<html>
+<head>
+  <title>Test</title>
+  <style>
+    body, html {
+      margin: 0;
+      margin-top: 5px;
+      font-family: Helvetica, sans-serif;
+    }
+
+    body img {
+      width: 30%;
+      margin-left: 35%;
+    }
+
+    #container {
+      width: 90vw;
+      height: 45vw;
+      margin-left: 5vw;
+      position:relative;
+      background-color: #ddefff;
+    }
+
+    #container canvas {
+      position: absolute;
+    }
+
+  </style>
+</head>
+<body>
+  <!-- importing the automatically build module -->
+  <!-- <script src="../dist/countrylookupturbo.umd.js"></script> -->
+
+  <!-- The minified version is also accessible -->
+  <script src="../dist/countrylookupturbo.umd.min.js"></script>
+
+  <a target=""><img src="../images/logo_2000.png"/></a>
+  <div id="container"></div>
+
+  <script>
+    console.log(countrylookupturbo);
+
+    function deg2rad(deg) {
+      return deg * (Math.PI / 180)
+    }
+
+
+    function rad2deg(rad) {
+      return rad * 180 / Math.PI
+    }
+
+
+    function equirectangularProjectionReverse(xyScreen, options = {}) {
+      const imageWidth = 'imageWidth' in options ? options.imageWidth : 1000
+      const xOffset = 'xOffset' in options ? options.xOffset : 0
+      const yOffset = 'yOffset' in options ? options.yOffset : 0
+      const lonLatCenter = 'lonLatCenter' in options ? options.lonLatCenter : [0, 0]
+      const lonSpan = 'lonSpan' in options ? options.lonSpan : 360
+      const latSpan = lonSpan / 2
+
+      const bboxLonLat = [
+        [lonLatCenter[0] - lonSpan / 2, lonLatCenter[1] - latSpan / 2], // bottom left corner
+        [lonLatCenter[0] + lonSpan / 2, lonLatCenter[1] + latSpan / 2], // top right corner
+      ]
+
+      // make sure it stays in the correct range
+      if (bboxLonLat[0][0] < -180) {
+        bboxLonLat[0][0] = -180
+        bboxLonLat[1][0] = bboxLonLat[0][0] + lonSpan
+      } else if (bboxLonLat[1][0] > 180) {
+        bboxLonLat[1][0] = 180
+        bboxLonLat[0][0] = bboxLonLat[1][0] - lonSpan
+      }
+      if (bboxLonLat[0][1] < -90) {
+        bboxLonLat[0][1] = -90
+        bboxLonLat[1][1] = bboxLonLat[0][1] + latSpan
+      } else if (bboxLonLat[1][1] > 90) {
+        bboxLonLat[1][1] = 90
+        bboxLonLat[0][1] = bboxLonLat[1][1] - latSpan
+      }
+
+      const bboxUnit = [
+        [bboxLonLat[0][0] / 180, bboxLonLat[0][1] / 90],
+        [bboxLonLat[1][0] / 180, bboxLonLat[1][1] / 90],
+      ]
+
+      const bboxUnitCenter = [
+        (bboxUnit[1][0] + bboxUnit[0][0]) / 2,
+        (bboxUnit[1][1] + bboxUnit[0][1]) / 2,
+      ]
+
+      const bboxUnitSize = [
+        bboxUnit[1][0] - bboxUnit[0][0],
+        bboxUnit[1][1] - bboxUnit[0][1],
+      ]
+
+
+
+      const xScreen = xyScreen[0] + xOffset
+      const yScreen = xyScreen[1] + yOffset
+      const imageHeight = imageWidth / 2
+
+      
+
+      const xUnit = 2 * (xScreen / imageWidth) - 1 // in [-1, 1]
+      const yUnit = -2 * (yScreen / imageHeight) + 1 // in [-1, 1]
+
+      const xUnitGlobe = bboxUnitCenter[0] + xUnit * bboxUnitSize[0] / 2
+      const yUnitGlobe = bboxUnitCenter[1] + yUnit * bboxUnitSize[1] / 2
+
+
+
+      let lon = xUnitGlobe * 180
+      let lat = yUnitGlobe * 90
+
+
+      return [lon, lat]
+    }
+
+
+    // a LUT for getting the color of the country
+    let countriesColor = {}
+
+    let mouseDown = false
+    let lonLatCenter = [0, 0]
+    let lonSpan = 360
+
+    const container = document.getElementById('container')
+    canvas = document.createElement('canvas')
+    canvas.width = 60
+    canvas.height = canvas.width / 2
+    canvas.style = 'image-rendering: pixelated; width: 100%;'
+    ctx = canvas.getContext('2d')
+    ctx.imageSmoothingEnabled = false
+    ctx.mozImageSmoothingEnabled = false
+    ctx.webkitImageSmoothingEnabled = false
+    ctx.ctxmsImageSmoothingEnabled = false
+    container.appendChild(canvas)
+    const canvasImageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const canvasImageDataArray = canvasImageData.data
+
+    canvasHi = document.createElement('canvas')
+    canvasHi.width = 200
+    canvasHi.height = canvasHi.width / 2
+    canvasHi.style = 'image-rendering: pixelated; width: 100%;'
+    ctxHi = canvasHi.getContext('2d')
+    ctxHi.imageSmoothingEnabled = false
+    ctxHi.mozImageSmoothingEnabled = false
+    ctxHi.webkitImageSmoothingEnabled = false
+    ctxHi.ctxmsImageSmoothingEnabled = false
+    container.appendChild(canvasHi)
+    const canvasImageDataHi = ctxHi.getImageData(0, 0, canvasHi.width, canvasHi.height)
+    const canvasImageDataArrayHi = canvasImageDataHi.data
+
+
+    container.addEventListener('mousemove', (evt) => {
+      if (!mouseDown) {
+        return
+      }
+
+      const stepLon = (evt.movementX / container.clientWidth ) * lonSpan
+      const stepLat = (evt.movementY / container.clientHeight) * lonSpan / 2
+
+      lonLatCenter[0] -= stepLon
+      lonLatCenter[1] += stepLat
+      drawMap()
+    })
+
+    container.addEventListener('mousedown', (evt) => {
+      mouseDown = true
+      drawMap()
+      showHi(false)
+    })
+
+
+    container.addEventListener('mouseup', (evt) => {
+      mouseDown = false
+      showHi(true)
+      drawMapHi()
+    })
+
+    const ZOOM_FACTOR = 0.90
+
+    let zoomIntervalId = null
+    document.addEventListener('keyup', evt => {
+      let pressed = false
+      // console.log(evt.key);
+      if (evt.key === '-') {
+        pressed = true
+        lonSpan /= ZOOM_FACTOR
+        if (lonSpan > 360) {
+          lonSpan = 360
+        }
+        // console.log('zoom -', lonSpan)
+        showHi(false)
+        drawMap()
+      }
+
+      if (evt.key === '=') {
+        pressed = true
+        lonSpan *= ZOOM_FACTOR
+        // console.log('zoom +', lonSpan)
+        showHi(false)
+        drawMap()
+      }
+
+      try{clearInterval(zoomIntervalId)}catch(e){}
+
+      zoomIntervalId = setTimeout(() => {
+        drawMapHi()
+        showHi(true)
+      }, 500)
+    })
+
+
+    function showHi(does = true) {
+      if (does) {
+        canvasHi.style.display = ''
+        canvas.style.display = 'none'
+      } else {
+        canvasHi.style.display = 'none'
+        canvas.style.display = ''
+      }
+    }
+
+    let zoomWheelIntervalId = null
+    container.addEventListener('wheel', evt => {
+      evt.preventDefault()
+      showHi(false)
+
+      if (evt.deltaY > 0) {
+        lonSpan /= ZOOM_FACTOR
+      } else {
+        lonSpan *= ZOOM_FACTOR
+      }
+
+      if (lonSpan > 360) {
+        lonSpan = 360
+      }
+
+      drawMap()
+
+      try{clearInterval(zoomWheelIntervalId)}catch(e){}
+
+      zoomWheelIntervalId = setTimeout(() => {
+        drawMapHi()
+        showHi(true)
+      }, 200)
+    })
+
+
+
+
+    
+
+    
+    function drawMap() {
+      console.time('chrono')
+      for (let i = 0; i < canvas.width; i += 1) {
+        for (let j = 0; j < canvas.height; j += 1) {
+          const index1D = (j * canvas.width + i) * 4
+          const lonLat = equirectangularProjectionReverse([i, j], {imageWidth: canvas.width, lonLatCenter, lonSpan})
+          const country = countrylookupturbo.getCountry(lonLat)
+          
+          if (!country) {
+            canvasImageDataArray[index1D] = 0
+            canvasImageDataArray[index1D + 1] = 0
+            canvasImageDataArray[index1D + 2] = 0
+            canvasImageDataArray[index1D + 3] = 0
+            continue
+          }
+
+          if (!(country in countriesColor)) {
+            countriesColor[country] = [
+              ~~(Math.random() * 255),
+              ~~(Math.random() * 255),
+              ~~(Math.random() * 255),
+            ]
+          }
+
+          canvasImageDataArray[index1D] = countriesColor[country][0]
+          canvasImageDataArray[index1D + 1] = countriesColor[country][1]
+          canvasImageDataArray[index1D + 2] = countriesColor[country][2]
+          canvasImageDataArray[index1D + 3] = 255
+        }
+      }
+      console.timeEnd('chrono')
+
+      // when done:
+      ctx.putImageData(canvasImageData, 0, 0)
+    }
+
+    function drawMapHi() {
+      console.time('chrono')
+      for (let i = 0; i < canvasHi.width; i += 1) {
+        for (let j = 0; j < canvasHi.height; j += 1) {
+          const index1D = (j * canvasHi.width + i) * 4
+          const lonLat = equirectangularProjectionReverse([i, j], {imageWidth: canvasHi.width, lonLatCenter, lonSpan})
+          const country = countrylookupturbo.getCountry(lonLat)
+          
+          if (!country) {
+            canvasImageDataArrayHi[index1D] = 0
+            canvasImageDataArrayHi[index1D + 1] = 0
+            canvasImageDataArrayHi[index1D + 2] = 0
+            canvasImageDataArrayHi[index1D + 3] = 0
+            continue
+          }
+
+          if (!(country in countriesColor)) {
+            countriesColor[country] = [
+              ~~(Math.random() * 255),
+              ~~(Math.random() * 255),
+              ~~(Math.random() * 255),
+            ]
+          }
+
+          canvasImageDataArrayHi[index1D] = countriesColor[country][0]
+          canvasImageDataArrayHi[index1D + 1] = countriesColor[country][1]
+          canvasImageDataArrayHi[index1D + 2] = countriesColor[country][2]
+          canvasImageDataArrayHi[index1D + 3] = 255
+        }
+      }
+      console.timeEnd('chrono')
+
+      // when done:
+      ctxHi.putImageData(canvasImageDataHi, 0, 0)
+    }
+
+    // drawMap()
+    drawMapHi()
+    showHi()
+  </script>
+
+</body>
+</html>
