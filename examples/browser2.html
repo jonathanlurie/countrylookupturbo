@@ -19,10 +19,22 @@
       margin-left: 5vw;
       position:relative;
       background-color: #ddefff;
+      touch-action: none;
     }
 
     #container canvas {
       position: absolute;
+      width: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    button {
+      width: 150px;
+      height: 100px;
+      font-size: 30px;
+      margin: 20px;
+      touch-action: none;
     }
 
   </style>
@@ -36,6 +48,16 @@
 
   <a target=""><img src="../images/logo_2000.png"/></a>
   <div id="container"></div>
+
+  <div style="text-align: center;">
+    <button id="zoom-minus">zoom -</button>
+    <button id="zoom-plus">zoom +</button>
+    <p>(or scroll to zoom)</p>
+  </div>
+
+  <a class="github-corner" href="https://github.com/jonathanlurie/countrylookupturbo" title="Fork me on GitHub"><svg width="80" height="80" viewbox="0 0 250 250"><title>Fork me on GitHub</title><path d="M0 0h250v250"></path><path class="octo-arm" d="M127.4 110c-14.6-9.2-9.4-19.5-9.4-19.5 3-7 1.5-11 1.5-11-1-6.2 3-2 3-2 4 4.7 2 11 2 11-2.2 10.4 5 14.8 9 16.2" fill="currentColor" style="transform-origin:130px 110px"></path><path class="octo-body" d="M113.2 114.3s3.6 1.6 4.7.6l15-13.7c3-2.4 6-3 8.2-2.7-8-11.2-14-25 3-41 4.7-4.4 10.6-6.4 16.2-6.4.6-1.6 3.6-7.3 11.8-10.7 0 0 4.5 2.7 6.8 16.5 4.3 2.7 8.3 6 12 9.8 3.3 3.5 6.7 8 8.6 12.3 14 3 16.8 8 16.8 8-3.4 8-9.4 11-11.4 11 0 5.8-2.3 11-7.5 15.5-16.4 16-30 9-40 .2 0 3-1 7-5.2 11l-13.3 11c-1 1 .5 5.3.8 5z" fill="currentColor"></path></svg><style> .github-corner svg{position:absolute;right:0;top:0;mix-blend-mode:darken;color:#ffffff;fill:#000000;}</style></a>
+
+ 
 
   <script>
     console.log(countrylookupturbo);
@@ -117,6 +139,7 @@
       return [lon, lat]
     }
 
+    const ZOOM_FACTOR = 0.90
 
     // a LUT for getting the color of the country
     let countriesColor = {}
@@ -125,11 +148,43 @@
     let lonLatCenter = [0, 0]
     let lonSpan = 360
 
+    const zoomPlus = document.getElementById('zoom-plus')
+    const zoomMinus = document.getElementById('zoom-minus')
+
+    let zoomPlusButtonIntervalId = null
+    zoomPlus.addEventListener('mouseup', (evt) => {
+      lonSpan *= ZOOM_FACTOR
+      showHi(false)
+      drawMap()
+
+      try{clearInterval(zoomPlusButtonIntervalId)}catch(e){}
+
+      zoomPlusButtonIntervalId = setTimeout(() => {
+        drawMapHi()
+        showHi(true)
+      }, 500)
+    })
+
+    zoomMinus.addEventListener('mouseup', (evt) => {
+      lonSpan /= ZOOM_FACTOR
+      if (lonSpan > 360) {
+        lonSpan = 360
+      }
+      showHi(false)
+      drawMap()
+
+      try{clearInterval(zoomPlusButtonIntervalId)}catch(e){}
+
+      zoomPlusButtonIntervalId = setTimeout(() => {
+        drawMapHi()
+        showHi(true)
+      }, 500)
+    })
+
     const container = document.getElementById('container')
     canvas = document.createElement('canvas')
     canvas.width = 60
     canvas.height = canvas.width / 2
-    canvas.style = 'image-rendering: pixelated; width: 100%;'
     ctx = canvas.getContext('2d')
     ctx.imageSmoothingEnabled = false
     ctx.mozImageSmoothingEnabled = false
@@ -142,7 +197,6 @@
     canvasHi = document.createElement('canvas')
     canvasHi.width = 200
     canvasHi.height = canvasHi.width / 2
-    canvasHi.style = 'image-rendering: pixelated; width: 100%;'
     ctxHi = canvasHi.getContext('2d')
     ctxHi.imageSmoothingEnabled = false
     ctxHi.mozImageSmoothingEnabled = false
@@ -153,7 +207,7 @@
     const canvasImageDataArrayHi = canvasImageDataHi.data
 
 
-    container.addEventListener('mousemove', (evt) => {
+    container.addEventListener('pointermove', (evt) => {
       if (!mouseDown) {
         return
       }
@@ -166,20 +220,20 @@
       drawMap()
     })
 
-    container.addEventListener('mousedown', (evt) => {
+    container.addEventListener('pointerdown', (evt) => {
       mouseDown = true
       drawMap()
       showHi(false)
     })
 
 
-    container.addEventListener('mouseup', (evt) => {
+    container.addEventListener('pointerup', (evt) => {
       mouseDown = false
       showHi(true)
       drawMapHi()
     })
 
-    const ZOOM_FACTOR = 0.90
+    
 
     let zoomIntervalId = null
     document.addEventListener('keyup', evt => {
